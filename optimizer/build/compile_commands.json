@@ -1,0 +1,8 @@
+[
+{
+  "directory": "D:/Graphics/optimizer/build",
+  "command": "D:\\mingw64\\bin\\c++.exe -DFMT_HEADER_ONLY -DSPDLOG_FMT_EXTERNAL @CMakeFiles/optimizer.dir/includes_CXX.rsp -std=gnu++17 -o CMakeFiles\\optimizer.dir\\main.cpp.obj -c D:\\Graphics\\optimizer\\main.cpp",
+  "file": "D:/Graphics/optimizer/main.cpp",
+  "output": "CMakeFiles/optimizer.dir/main.cpp.obj"
+}
+]

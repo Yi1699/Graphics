@@ -1,0 +1,3 @@
+D:/Graphics/optimizer/build/CMakeFiles/optimizer.dir
+D:/Graphics/optimizer/build/CMakeFiles/edit_cache.dir
+D:/Graphics/optimizer/build/CMakeFiles/rebuild_cache.dir

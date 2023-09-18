@@ -1,0 +1,3 @@
+D:/Graphics/hellocmake/build/CMakeFiles/hellocmake.dir
+D:/Graphics/hellocmake/build/CMakeFiles/edit_cache.dir
+D:/Graphics/hellocmake/build/CMakeFiles/rebuild_cache.dir
