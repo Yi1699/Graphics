@@ -45,7 +45,48 @@ Object::Object(const string& object_name)
 
 Matrix4f Object::model()
 {
-    return Matrix4f::Identity();
+    float Pi=(float)3.1415926;
+    const Quaternionf& r = rotation;
+    //结构化绑定，四元组转化为tuple（元组）变量后返回三个欧拉角的值,其为角度值，需转成弧度值供sin等函数计算。
+    auto [x_angle, y_angle, z_angle] = quaternion_to_ZYX_euler(r.w(), r.x(), r.y(), r.z());
+    x_angle = x_angle * Pi / 180;
+    y_angle = y_angle * Pi / 180;
+    z_angle = z_angle * Pi / 180;
+    //三个轴的旋转变换矩阵。
+    Matrix4f x_ro, y_ro, z_ro;
+    x_ro << 
+        1, 0, 0, 0,
+        0, cos(x_angle), -sin(x_angle), 0,
+        0, sin(x_angle), cos(x_angle), 0,
+        0, 0, 0, 1;
+    y_ro <<
+        cos(y_angle), 0,  sin(y_angle), 0,
+        0, 1, 0, 0,
+        -sin(y_angle), 0, cos(y_angle), 0,
+        0, 0, 0, 1;
+    z_ro <<
+        cos(z_angle), -sin(z_angle), 0, 0,
+        sin(z_angle), cos(z_angle), 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1;
+    //平移变换矩阵。
+    Matrix4f matrix_translation;
+    matrix_translation << 
+        1, 0, 0, center.x(),
+        0, 1, 0, center.y(),
+        0, 0, 1, center.z(),
+        0, 0, 0, 1;
+    //缩放变换矩阵。
+    Matrix4f matrix_scaling;
+    matrix_scaling <<
+        scaling.x(), 0, 0, 0,
+        0, scaling.y(), 0, 0,
+        0, 0, scaling.z(), 0,
+        0, 0, 0, 1;
+    //将多个变换矩阵相乘得到最终的变换矩阵。
+    Matrix4f ObjectTran = matrix_translation * x_ro * y_ro * z_ro * matrix_scaling;
+    
+    return ObjectTran;
 }
 
 void Object::update(vector<Object*>& all_objects)
