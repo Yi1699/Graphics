@@ -50,22 +50,28 @@ Matrix4f Camera::view()
 
 Matrix4f Camera::projection()
 {
+    //近平面边界值l,r,t,n,视角等
     const float fov_y = radians(fov_y_degrees);
-    const float top   = tan(fov_y / 2.0) * near;  //(target - position).norm() * std::tan(fov_y / 2.0f);
+    const float top   = tan(fov_y / 2.0f) * near;
     const float right = top * aspect_ratio;
     const float bottun = - top;
     const float left = - right;
 
-    Matrix4f projection = Matrix4f::Zero();
+/*  
+    文件原代码，平行投影
+    //(target - position).norm() * std::tan(fov_y / 2.0f);
     // 使用平行投影时，用户并不能从画面上直观地感受到相机的位置，
     // 因而会产生近处物体裁剪过多的错觉。为了产程更好的观察效果，
     // 这里没有使用相机本身的 near 而是取 near = -far 来让相机能看到“背后”的物体。
-/*    projection(0, 0) = 1.0f / right;
+    projection(0, 0) = 1.0f / right;
     projection(1, 1) = 1.0f / top;
     projection(2, 2) = -1.0f / far;
     projection(2, 3) = 0.0f;
     projection(3, 3) = 1.0f;
 */
+    //透视投影矩阵
+    Matrix4f projection = Matrix4f::Zero();
+
     projection(0, 0) = 2 * near / (right - left);
     projection(1, 1) = 2 * near / (top - bottun);
     projection(2, 2) = -(far + near)/(far - near);
