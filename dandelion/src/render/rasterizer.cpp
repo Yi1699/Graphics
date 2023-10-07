@@ -55,21 +55,22 @@ tuple<float, float, float> Rasterizer::compute_barycentric_2d(float x, float y, 
 void Rasterizer::draw(const std::vector<Triangle>& TriangleList, const GL::Material& material,
                       const std::list<Light>& lights, const Camera& camera)
 {
-    // these lines below are just for compiling and can be deleted
-    (void)material;
-    (void)lights;
-    (void)camera;
-    // these lines above are just for compiling and can be deleted
-
     // iterate over all triangles in TriangleList
     for (const auto& t : TriangleList) {
         Triangle newtriangle = t;
-        (void)newtriangle;
-        
+        std::array<Vector3f, 3> worldspace_pos;
+        for(int i = 0; i < 3; i++)
+        {
+            VertexShaderPayload payload = {t.vertex[i], t.normal[i]};
+            auto [out_position, out_normal] = vertex_shader(payload);
+            t.vertex[i] = out_position;
+            t.normal[i] = out_normal;
+            worldspace_pos[i] = payload.position;
+        }
+        rasterize_triangle(t, worldspace_pos, material, lights, camera);
 
         // transform vertex position to world space for interpolating
-        std::array<Vector3f, 3> worldspace_pos;
-        
+
 
         // Use vetex_shader to transform vertex attributes(position & normals) to
         // view port and set a new triangle

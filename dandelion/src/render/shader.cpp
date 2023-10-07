@@ -41,14 +41,25 @@ Vector3f phong_fragment_shader(const FragmentShaderPayload& payload, GL::Materia
 {
 
     Vector3f result = {0, 0, 0};
-    
+    Vector3f vi = payload.world_pos - camera.position;
+    float Iam = 0;
+    int k = 0;
+    float p = material.shininess;
     // ka,kd,ks can be got from material.ambient,material.diffuse,material.specular
-    Vector3f ka = material.ambient, kd = material.diffuse, ks = material.shininess;
-
-    for (std::list<Light>::iterator it = values.begin(); it != values.end(); ++it) {
-        
+    Vector3f ka = material.ambient, kd = material.diffuse, ks = material.specular;
+    Vector3f Ls = {0, 0, 0};
+    Vector3f Ld = {0, 0, 0};
+    for (std::list<Light>::iterator it = lights.begin(); it != lights.end(); ++it) {
+        Iam += it->intensity;
+        k++;
+        Vector3f li = it->position - payload.world_pos;
+        Vector3f ha = (vi + li) / (vi + li).norm();
+        float attenuated_light = it->intensity / std::pow((payload.world_pos - camera.position).norm(), 2.0);
+        Ld = Ld + kd.cwiseProduct(attenuated_light) * std::pow(std::max(0.0f, payload.world_normal.dot(li)), p);
+        Vector3f Ls = Ls + ks.cwiseProduct(attenuated_light) * std::pow(std::max(0.0f, payload.world_normal.dot(ha)), p);
     }
-
+    Iam = Iam / k * 0.3;
+    result = Ls + Ld + ka * Iam;
     // set ambient light intensity
 
     // Light Direction
