@@ -27,24 +27,28 @@ bool Rasterizer::inside_triangle(int x, int y, const Vector4f* vertices)
 {
     Vector3f v[3];
     for (int i = 0; i < 3; i++) v[i] = {vertices[i].x(), vertices[i].y(), 1.0};
-
     Vector3f p(float(x), float(y), 1.0f);
 
+    int num = 0;
+    for (int i = 0; i < 3; i++)
+    {
+        if((v[i] - v[i%3+1]).cross(p - v[i%3+1]) >= 0 ) num++;
+        else num--; 
+    }
+    if(num == 3 || num == -3) return true;
     return false;
 }
 
-// 给定坐标(x,y)以及三角形的三个顶点坐标，计算(x,y)对应的重心坐标[alpha, beta, gamma]
+// 给定坐标(x,y)以及三角形的三个顶点坐标，计算(x,y)对应的重心坐标[alpha, beta, gamma]，此为屏幕坐标系下的坐标
 tuple<float, float, float> Rasterizer::compute_barycentric_2d(float x, float y, const Vector4f* v)
 {
-    float c1 = 0.f, c2 = 0.f, c3 = 0.f;
-    
-    // these lines below are just for compiling and can be deleted
-    (void)x;
-    (void)y;
-    (void)v;
-    // these lines above are just for compiling and can be deleted
+    float gamma = ((v[0].y() - v[1].y()) * x + (v[1].x() - v[0].x()) * y + v[0].x() * v[1].y() - v[1].x() * v[1].y())
+    / ((v[0].y() - v[1].y()) * v[2].x() + (v[1].x() - v[0].x()) * v[2].y() + v[0].x() * v[1].y() - v[1].x() * v[0].y());
+    float beta = ((v[0].y() - v[2].y()) * x + (v[2].x() - v[0].x()) * y + v[0].x() * v[2].y() - v[2].x() * v[0].y())
+    / ((v[0].y() - v[2].y()) * v[1].x() + (v[2].x() - v[0].x()) * v[1].y() + v[0].x() * v[2].y() - v[2].x() * v[0].y());
+    float alpha = 1 - beta - gamma;
 
-    return {c1, c2, c3};
+    return {alpha, beta, gamma};
 }
 
 // 对当前渲染物体的所有三角形面片进行遍历，进行几何变换以及光栅化
@@ -76,7 +80,7 @@ void Rasterizer::draw(const std::vector<Triangle>& TriangleList, const GL::Mater
     }
 }
 
-// 对顶点的某一属性插值
+// 对顶点的某一属性插值，vert为顶点的某一属性
 Vector3f Rasterizer::interpolate(float alpha, float beta, float gamma, const Eigen::Vector3f& vert1,
                                  const Eigen::Vector3f& vert2, const Eigen::Vector3f& vert3,
                                  const Eigen::Vector3f& weight, const float& Z)
@@ -95,24 +99,44 @@ void Rasterizer::rasterize_triangle(const Triangle& t, const std::array<Vector3f
                                     GL::Material material, const std::list<Light>& lights,
                                     Camera camera)
 {
-    // these lines below are just for compiling and can be deleted
-    (void)t;
-    (void)world_pos;
-    (void)material;
-    (void)lights;
-    (void)camera;
-    // these lines above are just for compiling and can be deleted
 
     // discard all pixels out of the range(including x,y,z)
-
-    
+    float edgeLeft = min(t.vertex[0].x(), t.vertex[1].x(), t.vertex[2].x()),
+            edgeRight = max(t.vertex[0].x(), t.vertex[1].x(), t.vertex[2].x()),
+            edgeTop = max(t.vertex[0].y(), t.vertex[1].y(), t.vertex[2].y()),
+            edgeBottom = min(t.vertex[0].y(), t.vertex[1].y(), t.vertex[2].y());
+    if(edgeLeft < 0) edgeLeft = 0;
+    if(edgeRight > width) edgeRight = width;
+    if(edgeBottom < 0) edgeBottom = 0;
+    if(edgeTop > height) edgeTop = height;
+    for(int i = edgeLeft; i < edgeRight; i++)
+    {
+        for(int j = edgeBottom; j < edgeTop; j++)
+        {
+            int bufferindex=get_index(i, j);
+            if(inside_triangle(i + 0.5, j + 0.5, t.vertex) == true)
+            {
+                auto [alpha, beta, gamma] = compute_barycentric_2d(i, j, t.vertex);
+                float Z = 1 / (alpha / t.vertex[0].w() + beta / t.vertex[1].w() + gamma / t.vertex[2].w());
+                float weight = Vector3f{t.vertex[0].w(), t.vertex[1].w(), t.vertex[2].w()};
+                Vector3f newpoint = interpolate(alpha, beta, gamma, world_pos[0], world_pos[1], world_pos[2], weight, Z);
+                if(-newpoint.z() < depth_buf[bufferindex])
+                {
+                    depth_buf[bufferindex] = -newpoint.z();
+                    Vector3f camera_normal = interpolate(alpha, beta, gamma, t.normal[0], t.normal[1], t.normal[2], weight, Z);
+                    struct FragmentShaderPayload payload = (newpoint, camera_normal);
+                    frame_buf[bufferindex] = phong_fragment_shader(payload, material, lights, camera);
+                }
+            }
+        }
+    }
     
     // if current pixel is in current triange:
     // 1. interpolate depth(use projection correction algorithm)
     // 2. interpolate vertex positon & normal(use function:interpolate())
     // 3. fragment shading(use function:fragment_shader())
     // 4. set pixel
-            
+
 }
 
 // 初始化整个光栅化渲染器

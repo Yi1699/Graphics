@@ -20,17 +20,18 @@ int Uniforms::height;
 VertexShaderPayload vertex_shader(const VertexShaderPayload& payload)
 {
     VertexShaderPayload output_payload = payload;
+    // Vertex position transformation顶点位置变换到视口坐标系
+    Eigen::Matrix4f viewport = Eigen::Matrix4f::Zero();
+    viewport(0, 0) = Uniforms::width/2;
+    viewport(0, 3) = Uniforms::width/2;
+    viewport(1, 1) = Uniforms::height/2;
+    viewport(1, 3) = Uniforms::height/2;
+    viewport(2, 2) = 1;
+    viewport(3, 3) = 1;
 
-    
-
-    // Vertex position transformation
-    
-
-    // Viewport transformation
-    
-
-    // Vertex normal transformation
-    
+    output_payload.position = viewport * Uniforms::MVP * output_payload.position;
+    // Vertex normal transformation法线变换到世界坐标系
+    output_payload.normal = Uniforms::inv_trans_M * output_payload.normal;
 
     return output_payload;
 }
@@ -38,22 +39,20 @@ VertexShaderPayload vertex_shader(const VertexShaderPayload& payload)
 Vector3f phong_fragment_shader(const FragmentShaderPayload& payload, GL::Material material,
                                const std::list<Light>& lights, Camera camera)
 {
-    // these lines below are just for compiling and can be deleted
-    (void)payload;
-    (void)material;
-    (void)lights;
-    (void)camera;
-    // these lines above are just for compiling and can be deleted
-    
+
     Vector3f result = {0, 0, 0};
     
     // ka,kd,ks can be got from material.ambient,material.diffuse,material.specular
-    
+    Vector3f ka = material.ambient, kd = material.diffuse, ks = material.shininess;
+
+    for (std::list<Light>::iterator it = values.begin(); it != values.end(); ++it) {
+        
+    }
 
     // set ambient light intensity
 
     // Light Direction
-        
+    
     // View Direction
         
     // Half Vector
