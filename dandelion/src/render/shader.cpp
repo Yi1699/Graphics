@@ -1,6 +1,6 @@
 #include "shader.h"
 #include "../utils/math.hpp"
-
+#include<iostream>
 #ifdef _WIN32
 #undef min
 #undef max
@@ -21,17 +21,23 @@ VertexShaderPayload vertex_shader(const VertexShaderPayload& payload)
 {
     VertexShaderPayload output_payload = payload;
     // Vertex position transformation顶点位置变换到视口坐标系
+
+    output_payload.position =Uniforms::MVP * output_payload.position;
+
     Eigen::Matrix4f viewport = Eigen::Matrix4f::Zero();
-    viewport(0, 0) = Uniforms::width/2;
-    viewport(0, 3) = Uniforms::width/2;
-    viewport(1, 1) = Uniforms::height/2;
-    viewport(1, 3) = Uniforms::height/2;
+    viewport(0, 0) = Uniforms::width/2.f/output_payload.position.w();
+    viewport(1, 1) = Uniforms::height/2.f/output_payload.position.w();
     viewport(2, 2) = 1;
     viewport(3, 3) = 1;
+    
+    Vector4f vv = {Uniforms::width/2.f, Uniforms::height/2.f, 0, 0};
+    output_payload.position =viewport * output_payload.position + vv;
+    Vector4f tempnormal = {output_payload.normal[0], output_payload.normal[1], output_payload.normal[2], 0};
+    tempnormal = Uniforms::inv_trans_M * tempnormal;
+    output_payload.normal = {tempnormal[0], tempnormal[1], tempnormal[2]};
+    output_payload.normal.normalize();
 
-    output_payload.position = viewport * Uniforms::MVP * output_payload.position;
     // Vertex normal transformation法线变换到世界坐标系
-    output_payload.normal = Uniforms::inv_trans_M * output_payload.normal;
 
     return output_payload;
 }
@@ -39,44 +45,33 @@ VertexShaderPayload vertex_shader(const VertexShaderPayload& payload)
 Vector3f phong_fragment_shader(const FragmentShaderPayload& payload, GL::Material material,
                                const std::list<Light>& lights, Camera camera)
 {
-
     Vector3f result = {0, 0, 0};
-    Vector3f vi = payload.world_pos - camera.position;
-    float Iam = 0;
-    int k = 0;
+    Vector3f vi = camera.position - payload.world_pos;
+ 
+    vi.normalize();
+    float Iam = 0.1f;
     float p = material.shininess;
     // ka,kd,ks can be got from material.ambient,material.diffuse,material.specular
     Vector3f ka = material.ambient, kd = material.diffuse, ks = material.specular;
+//    std::cout<<ks[0]<<" "<<ks[1]<<" "<<ks[2]<<std::endl;
     Vector3f Ls = {0, 0, 0};
     Vector3f Ld = {0, 0, 0};
-    for (std::list<Light>::iterator it = lights.begin(); it != lights.end(); ++it) {
-        Iam += it->intensity;
-        k++;
+    for (std::list<Light>::const_iterator it = lights.begin(); it != lights.end(); ++it) {
         Vector3f li = it->position - payload.world_pos;
+ 
+        float Light_length = li.norm();
+        li.normalize();
         Vector3f ha = (vi + li) / (vi + li).norm();
-        float attenuated_light = it->intensity / std::pow((payload.world_pos - camera.position).norm(), 2.0);
-        Ld = Ld + kd.cwiseProduct(attenuated_light) * std::pow(std::max(0.0f, payload.world_normal.dot(li)), p);
-        Vector3f Ls = Ls + ks.cwiseProduct(attenuated_light) * std::pow(std::max(0.0f, payload.world_normal.dot(ha)), p);
+        float attenuated_light = it->intensity / std::pow(Light_length, 2.0f);
+        Ld = Ld + kd * (attenuated_light) * std::max(0.0f, payload.world_normal.dot(li));
+        Ls = Ls + ks * (attenuated_light) * std::pow(std::max(0.0f, payload.world_normal.dot(ha)), p);
     }
-    Iam = Iam / k * 0.3;
-    result = Ls + Ld + ka * Iam;
-    // set ambient light intensity
 
-    // Light Direction
-    
-    // View Direction
-        
-    // Half Vector
-        
-    // Light Attenuation
-        
-    // Ambient
-        
-    // Diffuse
-        
-    // Specular
-        
-    // set rendering result max threshold to 255
-    
-    return result * 255.f;
+    result = (Ls + Ld + ka * Iam) * 255.f;
+    for(int i = 0; i < 3; i++)
+    {
+        if(result[i] > 255) result[i] = 255.f;
+    }
+
+    return result;
 }
