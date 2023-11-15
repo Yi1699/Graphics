@@ -105,20 +105,15 @@ void WhittedRenderer::render(Scene& scene)
 // 菲涅尔定理计算反射光线
 float WhittedRenderer::fresnel(const Vector3f& I, const Vector3f& N, const float& ior)
 {
-    // these lines below are just for compiling and can be deleted
-    (void)I;
-    (void)N;
-    (void)ior;
-    return INFINITY_FLOAT - EPSILON;
-    // these lines above are just for compiling and can be deleted
+    float R0 = pow((1.f - ior) / (1.f + ior), 2.f);
+
+    return R0 + (1.f - R0) * pow((1.f - I.dot(N)), 5.f);
 }
 
 // 如果相交返回Intersection结构体，如果不相交则返回false
 std::optional<std::tuple<Intersection, GL::Material>> WhittedRenderer::trace(const Ray& ray,
                                                                              const Scene& scene)
 {
-    // this line below is just for compiling and can be deleted
-    (void)ray;
 
     std::optional<Intersection> payload;
     Eigen::Matrix4f M;
@@ -126,9 +121,26 @@ std::optional<std::tuple<Intersection, GL::Material>> WhittedRenderer::trace(con
     for (const auto& group : scene.groups) {
         for (const auto& object : group->objects) {
 
-            // this line below is just for compiling and can be deleted
-            (void)object;
+            M = object->model();
+            std::optional<Intersection> payload1 = naive_intersect(ray, object->mesh, M);
+            if(payload1.has_value())
+            {
+                if(payload.has_value())
+                {
+                    if(payload1->t < payload->t)
+                    {
+                        payload = payload1;
+                        material = object->mesh.material;
+                    //    logger->info("shiness = {:f} ", material.shininess);
+                    }
 
+                }
+                else
+                {
+                    payload = payload1;
+                    material = object->mesh.material;
+                }
+            }
             // if use bvh(exercise 2.4): use object->bvh->intersect
             // else(exercise 2.3): use naive_intersect()
             // pay attention to the range of payload->t
@@ -152,8 +164,45 @@ Vector3f WhittedRenderer::cast_ray(const Ray& ray, const Scene& scene, int depth
     // get the result of trace()
     auto result = trace(ray, scene);
 
-    // this line below is just for compiling and can be deleted
-    (void)result;
+    if(result.has_value())
+    {
+        Intersection ResultRay = std::get<0>(result.value());
+        GL::Material material = std::get<1>(result.value());
+
+//        logger->info("shiness = {:f} ", material.shininess);
+        if(material.shininess > 1000.f)
+        {
+            Vector3f Norm = ResultRay.normal;
+            float kr = fresnel(-ray.direction, Norm, 2.f);
+//            logger->info("fresnel kr = {:f} ", kr);
+            Ray reflectRay = {ray.origin + ResultRay.t * ray.direction, (Norm.dot(-ray.direction) * 2 *Norm + ray.direction).normalized()};
+            hitcolor = cast_ray(reflectRay, scene, depth + 1) * kr;
+        }
+        else
+        {
+            hitcolor << 0, 0, 0;
+            for (std::list<Light>::const_iterator it = scene.lights.begin(); it != scene.lights.end(); ++it) {
+                Ray toLight;
+                toLight.origin = ray.origin + ResultRay.t * ray.direction;
+                toLight.direction = it->position - toLight.origin;
+                float Light_length = (toLight.direction).norm();
+                toLight.direction.normalize();
+                auto judgeShadow = trace(toLight, scene);
+                if(!judgeShadow.has_value())
+                {
+                    float attenuated_light = it->intensity / std::pow(Light_length, 2.0f);
+                    Vector3f ha = (-ray.direction + toLight.direction) / (-ray.direction + toLight.direction).norm();
+                    hitcolor = hitcolor + material.diffuse * (attenuated_light) * std::max(0.0f, (ResultRay.normal).dot(toLight.direction))
+                    + material.specular * (attenuated_light) * std::pow(std::max(0.0f, (ResultRay.normal).dot(ha)), material.shininess);
+                }
+                
+            }
+            for(int i = 0; i < 3; i++)
+            {
+                if(hitcolor[i] > 255) hitcolor[i] = 255.f;
+            }
+        }
+    }
 
     // if result.has_value():
     // 1.judge the material_type
@@ -163,6 +212,6 @@ Vector3f WhittedRenderer::cast_ray(const Ray& ray, const Scene& scene, int depth
     // if DIFFUSE_AND_GLOSSY:
     //(1)compute shadow result using trace()
     //(2)hitcolor = diffuse*kd + specular*ks
-
+//    std::cout<<hitcolor<<" ";
     return hitcolor;
 }
