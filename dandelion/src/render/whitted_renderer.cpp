@@ -113,14 +113,12 @@ float WhittedRenderer::fresnel(const Vector3f& I, const Vector3f& N, const float
 // 如果相交返回Intersection结构体，如果不相交则返回false
 std::optional<std::tuple<Intersection, GL::Material>> WhittedRenderer::trace(const Ray& ray,
                                                                              const Scene& scene)
-{
-
+{//遍历所有group的所有物体，调用naive_intersect()求交点
     std::optional<Intersection> payload;
     Eigen::Matrix4f M;
     GL::Material material;
     for (const auto& group : scene.groups) {
         for (const auto& object : group->objects) {
-
             M = object->model();
             std::optional<Intersection> payload1 = naive_intersect(ray, object->mesh, M);
             if(payload1.has_value())
@@ -131,9 +129,7 @@ std::optional<std::tuple<Intersection, GL::Material>> WhittedRenderer::trace(con
                     {
                         payload = payload1;
                         material = object->mesh.material;
-                    //    logger->info("shiness = {:f} ", material.shininess);
                     }
-
                 }
                 else
                 {
@@ -168,13 +164,11 @@ Vector3f WhittedRenderer::cast_ray(const Ray& ray, const Scene& scene, int depth
     {
         Intersection ResultRay = std::get<0>(result.value());
         GL::Material material = std::get<1>(result.value());
-
-//        logger->info("shiness = {:f} ", material.shininess);
         if(material.shininess > 1000.f)
-        {
+        {//shiness值大于1000时视为镜面，只进行反射
             Vector3f Norm = ResultRay.normal;
+            //菲涅尔反射计算kr
             float kr = fresnel(-ray.direction, Norm, 2.f);
-//            logger->info("fresnel kr = {:f} ", kr);
             Ray reflectRay = {ray.origin + ResultRay.t * ray.direction, (Norm.dot(-ray.direction) * 2 *Norm + ray.direction).normalized()};
             hitcolor = cast_ray(reflectRay, scene, depth + 1) * kr;
         }
@@ -189,13 +183,12 @@ Vector3f WhittedRenderer::cast_ray(const Ray& ray, const Scene& scene, int depth
                 toLight.direction.normalize();
                 auto judgeShadow = trace(toLight, scene);
                 if(!judgeShadow.has_value())
-                {
+                {   //如果没有找到交点，则直接计算该点的颜色，计算时加入了漫反射和镜面反射光
                     float attenuated_light = it->intensity / std::pow(Light_length, 2.0f);
                     Vector3f ha = (-ray.direction + toLight.direction) / (-ray.direction + toLight.direction).norm();
                     hitcolor = hitcolor + material.diffuse * (attenuated_light) * std::max(0.0f, (ResultRay.normal).dot(toLight.direction))
                     + material.specular * (attenuated_light) * std::pow(std::max(0.0f, (ResultRay.normal).dot(ha)), material.shininess);
                 }
-                
             }
             for(int i = 0; i < 3; i++)
             {
@@ -212,6 +205,5 @@ Vector3f WhittedRenderer::cast_ray(const Ray& ray, const Scene& scene, int depth
     // if DIFFUSE_AND_GLOSSY:
     //(1)compute shadow result using trace()
     //(2)hitcolor = diffuse*kd + specular*ks
-//    std::cout<<hitcolor<<" ";
     return hitcolor;
 }
