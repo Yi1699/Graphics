@@ -1,7 +1,7 @@
 #include "aabb.h"
 
 #include <array>
-
+#include <iostream>
 #include <Eigen/Geometry>
 
 using Eigen::Vector3f;
@@ -43,13 +43,23 @@ Vector3f AABB::centroid()
 // 判断当前射线是否与当前AABB相交
 bool AABB::intersect(const Ray& ray, const Vector3f& inv_dir, const std::array<int, 3>& dir_is_neg)
 {
+    float tmin = std::numeric_limits<float>::lowest();
+    float tmax = std::numeric_limits<float>::max();
     // these lines below are just for compiling and can be deleted
-    (void)ray;
-    (void)inv_dir;
-    (void)dir_is_neg;
+    for(int i = 0; i < 3; i++)
+    {
+        float t0 = (p_min[i] - ray.origin[i]) * inv_dir[i];
+        float t1 = (p_max[i] - ray.origin[i]) * inv_dir[i];
+        
+        if(dir_is_neg[i]) 
+        {float temp; temp = t0; t0 = t1; t1 = temp;}
+        tmax = t1 < tmax ? t1 : tmax;
+        tmin = t0 > tmin ? t0 : tmin;
+    }
+    //std::cout << tmax << " "<<  tmin << std::endl;
+    if(tmax <= tmin) return false;
     return true;
     // these lines above are just for compiling and can be deleted
-
 }
 // 获取当前图元对应AABB
 AABB get_aabb(const GL::Mesh& mesh, size_t face_idx)

@@ -50,13 +50,35 @@ Ray generate_ray(int width, int height, int x, int y, Camera& camera, float dept
 
 optional<Intersection> ray_triangle_intersect(const Ray& ray, const GL::Mesh& mesh, size_t index)
 {
-    // these lines below are just for compiling and can be deleted
-    (void)ray;
-    (void)mesh;
-    (void)index;
-    // these lines above are just for compiling and can be deleted
     Intersection result;
-    
+    result.t = infinity;
+    Vector3f P0 = mesh.vertex(mesh.face(index)[0]);
+    Vector3f P1 = mesh.vertex(mesh.face(index)[1]);
+    Vector3f P2 = mesh.vertex(mesh.face(index)[2]);
+    //用MT算法求交点
+    Vector3f E1 = P1 - P0;
+    Vector3f E2 = P2 - P0;
+    Vector3f S = ray.origin - P0;
+    Vector3f S1 = (ray.direction).cross(E2);
+    Vector3f S2 = S.cross(E1);
+    Vector3f P10 = P1 - P0;
+    Vector3f P21 = P2 - P1;
+    Vector3f Norm = (P10.cross(P21)).normalized();
+    float t = S2.dot(E2) / (E1.dot(S1));
+    float b1 = S1.dot(S) / (E1.dot(S1));
+    float b2 = S2.dot(ray.direction) / (E1.dot(S1));
+    float b0 = 1- b1 - b2;
+    float judge = Norm.dot(ray.direction);
+    if(t > eps && b1 > 0 && b2 > 0 && b0 > 0 && judge < -eps && t - eps < result.t)
+    {//当求出的t大于0，且重心坐标均大于零（说明交点在三角形内），光线不与三角形平行且从正面穿过，求得的交点比原最近交点更近。
+        Vector3f Vec = {b0, b1, b2};
+        result.t = t - eps;
+        //Vector3f InsertNorm = (b0 * N0 + b1 * N1 + b2 * N2).normalized();
+        result.normal = Norm;//或 = InsertNorm;
+        result.barycentric_coord = Vec;
+        result.face_index = index;
+    }
+    //std::cout << index << std::endl;
     if (result.t - infinity < -eps) {
         return result;
     } else {

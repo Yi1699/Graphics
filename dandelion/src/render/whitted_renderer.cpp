@@ -120,7 +120,9 @@ std::optional<std::tuple<Intersection, GL::Material>> WhittedRenderer::trace(con
     for (const auto& group : scene.groups) {
         for (const auto& object : group->objects) {
             M = object->model();
-            std::optional<Intersection> payload1 = naive_intersect(ray, object->mesh, M);
+            std::optional<Intersection> payload1;
+            if(use_bvh) payload1 = object->bvh->intersect(ray, object->mesh, M);
+            else payload1 = naive_intersect(ray, object->mesh, M);
             if(payload1.has_value())
             {
                 if(payload.has_value())
