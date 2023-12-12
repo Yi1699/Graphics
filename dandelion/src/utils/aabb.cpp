@@ -51,13 +51,12 @@ bool AABB::intersect(const Ray& ray, const Vector3f& inv_dir, const std::array<i
         float t0 = (p_min[i] - ray.origin[i]) * inv_dir[i];
         float t1 = (p_max[i] - ray.origin[i]) * inv_dir[i];
         
-        if(dir_is_neg[i]) 
-        {float temp; temp = t0; t0 = t1; t1 = temp;}
+        if(dir_is_neg[i]) {float temp; temp = t0; t0 = t1; t1 = temp;}
         tmax = t1 < tmax ? t1 : tmax;
         tmin = t0 > tmin ? t0 : tmin;
     }
     //std::cout << tmax << " "<<  tmin << std::endl;
-    if(tmax <= tmin) return false;
+    if(tmax <= tmin - float(1e-5)) return false;
     return true;
     // these lines above are just for compiling and can be deleted
 }

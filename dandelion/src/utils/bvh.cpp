@@ -70,7 +70,9 @@ BVHNode* BVH::recursively_build(vector<size_t> faces_idx)
     }
     node->aabb = aabb;
     if(faces_idx.size() == 1) 
-    {
+    {   
+        node->left = NULL;
+        node->right = NULL;
         node->face_idx = faces_idx[0];
         return node;
     }
@@ -203,7 +205,7 @@ optional<Intersection> BVH::ray_node_intersect(BVHNode* node, const Ray& ray) co
     ray_model.direction = (inv_model * dir4).head<3>();
     ray_model.origin = (inv_model * orig).head<3>();
     ray_model.direction.normalize();
-    Eigen::Vector3f inv_dir(1.f / ray.direction.x(), 1.f / ray.direction.y(), 1.f / ray.direction.z());
+    Eigen::Vector3f inv_dir(1.f / ray_model.direction.x(), 1.f / ray_model.direction.y(), 1.f / ray_model.direction.z());
     std::array<int, 3> dir_neg;
     dir_neg[0] = ray.direction.x() > 0 ? 0 : 1;
     dir_neg[1] = ray.direction.y() > 0 ? 0 : 1;
@@ -215,7 +217,7 @@ optional<Intersection> BVH::ray_node_intersect(BVHNode* node, const Ray& ray) co
         return std::nullopt;
     }
     else
-    {
+    {//std::cout << node->face_idx << std::endl;
         if(node->face_idx > 0)
         {
             isect = ray_triangle_intersect(ray_model, mesh, node->face_idx);
@@ -224,10 +226,16 @@ optional<Intersection> BVH::ray_node_intersect(BVHNode* node, const Ray& ray) co
         else
         {
             optional<Intersection> left_result, right_result;
-            left_result = ray_node_intersect(node->left, ray_model);
-            right_result = ray_node_intersect(node->right, ray_model);
-            if(left_result.has_value()) isect = left_result;
-            else if(right_result.has_value()) isect = right_result;
+            if(node->left)left_result = ray_node_intersect(node->left, ray_model);
+            if(node->right)right_result = ray_node_intersect(node->right, ray_model);
+            if(left_result.has_value() && !right_result.has_value()) isect = left_result;
+            else if(right_result.has_value() && !left_result.has_value()) isect = right_result;
+            else if(right_result.has_value() && left_result.has_value())
+            {
+                //std::cout << right_result->t << std::endl;
+                if(right_result->t <= left_result->t) isect = right_result;
+                else isect = left_result;
+            }
             else
             {
                 return std::nullopt;
