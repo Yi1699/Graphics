@@ -55,6 +55,9 @@ optional<Intersection> ray_triangle_intersect(const Ray& ray, const GL::Mesh& me
     Vector3f P0 = mesh.vertex(mesh.face(index)[0]);
     Vector3f P1 = mesh.vertex(mesh.face(index)[1]);
     Vector3f P2 = mesh.vertex(mesh.face(index)[2]);
+    // Vector3f N0 = mesh.normal(mesh.face(index)[0]);
+    // Vector3f N1 = mesh.normal(mesh.face(index)[1]);
+    // Vector3f N2 = mesh.normal(mesh.face(index)[2]);
     //用MT算法求交点
     Vector3f E1 = P1 - P0;
     Vector3f E2 = P2 - P0;
@@ -74,7 +77,7 @@ optional<Intersection> ray_triangle_intersect(const Ray& ray, const GL::Mesh& me
         Vector3f Vec = {b0, b1, b2};
         result.t = t - eps;
         //Vector3f InsertNorm = (b0 * N0 + b1 * N1 + b2 * N2).normalized();
-        result.normal = Norm;//或 = InsertNorm;
+        result.normal = Norm; //= InsertNorm;
         result.barycentric_coord = Vec;
         result.face_index = index;
     }

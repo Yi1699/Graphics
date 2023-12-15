@@ -48,6 +48,7 @@ bool AABB::intersect(const Ray& ray, const Vector3f& inv_dir, const std::array<i
     // these lines below are just for compiling and can be deleted
     for(int i = 0; i < 3; i++)
     {
+        if(ray.direction[i] < 1e-5 && ray.direction[i] > -1e-5) continue;
         float t0 = (p_min[i] - ray.origin[i]) * inv_dir[i];
         float t1 = (p_max[i] - ray.origin[i]) * inv_dir[i];
         
@@ -60,6 +61,7 @@ bool AABB::intersect(const Ray& ray, const Vector3f& inv_dir, const std::array<i
     return true;
     // these lines above are just for compiling and can be deleted
 }
+
 // 获取当前图元对应AABB
 AABB get_aabb(const GL::Mesh& mesh, size_t face_idx)
 {

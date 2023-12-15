@@ -185,54 +185,55 @@ optional<Intersection> BVH::intersect(const Ray& ray, [[maybe_unused]] const GL:
                                       const Eigen::Matrix4f obj_model)
 {
     model = obj_model;
+    Eigen::Matrix4f inv_model = this->model.inverse();
     optional<Intersection> isect;
     if (!root) {
         isect = std::nullopt;
         return isect;
     }
-    isect = ray_node_intersect(root, ray);
+    Ray ray_model;
+    ray_model.direction = ((model.inverse() * to_vec4(ray.direction)).head<3>()).normalized();
+    ray_model.origin = ((model.inverse() * ray.origin.homogeneous())).head<3>();
+    isect = ray_node_intersect(root, ray_model);
+    if(isect.has_value())
+    {
+        isect->normal = ((model.inverse().transpose()) * (to_vec4(isect->normal))).head<3>();
+        //std::cout << isect->normal.x()<< " "<<isect->normal.y()<<" "<< isect->normal.z() << std::endl;
+    }
     return isect;
 }
 // 发射的射线与当前节点求交，并递归获取最终的求交结果
 optional<Intersection> BVH::ray_node_intersect(BVHNode* node, const Ray& ray) const
 {
+    if(!node) return std::nullopt;
     optional<Intersection> isect;
     // these lines below are just for compiling and can be deleted
-    Eigen::Matrix4f inv_model = model.inverse();
-    Ray ray_model;
-    Eigen::Vector4f dir4(ray.direction.x(), ray.direction.y(), ray.direction.z(), 0.f);
-    Eigen::Vector4f orig(ray.origin.x(), ray.origin.y(), ray.origin.z(), 1.f);
-    ray_model.direction = (inv_model * dir4).head<3>();
-    ray_model.origin = (inv_model * orig).head<3>();
-    ray_model.direction.normalize();
-    Eigen::Vector3f inv_dir(1.f / ray_model.direction.x(), 1.f / ray_model.direction.y(), 1.f / ray_model.direction.z());
+    Eigen::Matrix4f inv_model = this->model.inverse();
+    Eigen::Vector3f inv_dir(1.0f / ray.direction.x(), 1.0f / ray.direction.y(), 1.0f / ray.direction.z());
     std::array<int, 3> dir_neg;
     dir_neg[0] = ray.direction.x() > 0 ? 0 : 1;
     dir_neg[1] = ray.direction.y() > 0 ? 0 : 1;
     dir_neg[2] = ray.direction.z() > 0 ? 0 : 1;
-    bool isIn = node->aabb.intersect(ray_model, inv_dir, dir_neg);
-    //std::cout << ray_model.direction.x()<<" "<<ray_model.direction.y()<<" "<<ray_model.direction.z() << std::endl;
+    bool isIn = node->aabb.intersect(ray, inv_dir, dir_neg);
     if(!isIn)
     {
         return std::nullopt;
     }
     else
-    {//std::cout << node->face_idx << std::endl;
+    {
         if(node->face_idx > 0)
         {
-            isect = ray_triangle_intersect(ray_model, mesh, node->face_idx);
-            //std::cout << node->face_idx << std::endl;
+            isect = ray_triangle_intersect(ray, mesh, node->face_idx);
         }
         else
         {
             optional<Intersection> left_result, right_result;
-            if(node->left)left_result = ray_node_intersect(node->left, ray_model);
-            if(node->right)right_result = ray_node_intersect(node->right, ray_model);
+            if(node->left)left_result = ray_node_intersect(node->left, ray);
+            if(node->right)right_result = ray_node_intersect(node->right, ray);
             if(left_result.has_value() && !right_result.has_value()) isect = left_result;
             else if(right_result.has_value() && !left_result.has_value()) isect = right_result;
             else if(right_result.has_value() && left_result.has_value())
             {
-                //std::cout << right_result->t << std::endl;
                 if(right_result->t <= left_result->t) isect = right_result;
                 else isect = left_result;
             }
@@ -242,13 +243,7 @@ optional<Intersection> BVH::ray_node_intersect(BVHNode* node, const Ray& ray) co
             }
         }
     }
-    if(isect.has_value())
-    {
-        Eigen::Vector4f tran_norm(isect->normal.x(), isect->normal.y(), isect->normal.z(), 1.f);
-        tran_norm = model.inverse().transpose() * tran_norm;
-        isect->normal = tran_norm.head<3>();
-        //std::cout << isect->normal.x()<< " "<<isect->normal.y()<<" "<< isect->normal.z() << std::endl;
-    }
+
 
     // The node intersection is performed in the model coordinate system.
     // Therefore, the ray needs to be transformed into the model coordinate system.
